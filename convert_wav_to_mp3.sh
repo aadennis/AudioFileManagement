@@ -104,15 +104,20 @@ else
 fi
 
 # Build ffmpeg args for MP3 conversion
-build_ffmpeg_args() {
-  if [ "$USE_VBR" = true ]; then
-    echo "-codec:a libmp3lame -q:a 0"
-  else
-    echo "-codec:a libmp3lame -b:a $MP3_BITRATE"
-  fi
-}
+## Build ffmpeg args as an array to avoid splitting/quoting issues
+declare -a FFMPEG_ARGS
+if [ "$USE_VBR" = true ]; then
+  FFMPEG_ARGS=( -codec:a libmp3lame -q:a 0 )
+else
+  FFMPEG_ARGS=( -codec:a libmp3lame -b:a "$MP3_BITRATE" )
+fi
 
-FFMPEG_ARGS=( $(build_ffmpeg_args) )
+# Verify ffmpeg supports libmp3lame (otherwise building MP3 won't work)
+if ! ffmpeg -hide_banner -encoders 2>/dev/null | grep -qE "libmp3lame|mp3\_?lame"; then
+  echo "Error: the ffmpeg build doesn't support libmp3lame / LAME mp3 encoder."
+  echo "Install ffmpeg with mp3 encoder support or use a build that includes libmp3lame (e.g., apt install ffmpeg on Debian/Ubuntu or use a static build)."
+  exit 3
+fi
 
 # Convert
 count=0
@@ -129,7 +134,13 @@ while IFS= read -r -d $'\0' src; do
   out="$MP3_DIR/${base}.mp3"
 
   echo "Converting: $src -> $out"
-  ffmpeg -y -hide_banner -loglevel info -i "$src" "${FFMPEG_ARGS[@]}" "$out"
+  # Try the command; if it fails with 'At least one output file must be specified', print the full command for debug
+  if ! ffmpeg -y -hide_banner -loglevel info -i "$src" "${FFMPEG_ARGS[@]}" "$out"; then
+    echo "\n--- ERROR: ffmpeg failed while converting $src" >&2
+    echo "Command: ffmpeg -y -i '$src' ${FFMPEG_ARGS[*]} '$out'" >&2
+    echo "Check the ffmpeg output above for clues (missing encoder, invalid flags)." >&2
+    continue
+  fi
   count=$((count + 1))
 
 done < <("${SEARCH_CMD[@]}" -print0)
