@@ -24,4 +24,22 @@ Config (top of `convert_wav_to_mp3.sh`):
 
 Output:
 Converted files will be placed under `<target>/mp3` with the same basename and `.mp3` extension.
+## split_mp3_file.sh
+Split a single mp3 into N equal parts (approx.). Defaults to 4 parts and writes files to a `split` folder next to the input file.
+
+Usage:
+```
+chmod +x split_mp3_file.sh
+./split_mp3_file.sh x.mp3
+./split_mp3_file.sh x.mp3 -n 6 --outdir parts
+```
+
+Options:
+- `-n` / `--parts` — number of parts to split into (default 4)
+- `--outdir` — output folder name (default: `split`)
+- `--no-force` — do not overwrite existing files; script will skip those
+
+Output:
+Files will be created as `x-1.mp3`, `x-2.mp3`, ... in the output folder.
+
 
