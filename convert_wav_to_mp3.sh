@@ -31,6 +31,8 @@ show_help() {
 # parse CLI
 RECURSIVE=false
 BITRATE='' 
+SKIP_UP_TO_DATE=false
+FORCE_OVERWRITE=true
 
 # accept flags
 POSITIONAL=()
@@ -51,6 +53,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --no-vbr)
       USE_VBR=false
+      shift
+      ;;
+    --skip-up-to-date)
+      SKIP_UP_TO_DATE=true
+      shift
+      ;;
+    --no-force)
+      FORCE_OVERWRITE=false
       shift
       ;;
     -h|--help)
@@ -107,9 +117,10 @@ fi
 ## Build ffmpeg args as an array to avoid splitting/quoting issues
 declare -a FFMPEG_ARGS
 if [ "$USE_VBR" = true ]; then
-  FFMPEG_ARGS=( -codec:a libmp3lame -q:a 0 )
+  # Add -nostdin so ffmpeg won't attempt to read from the script's stdin
+  FFMPEG_ARGS=( -nostdin -codec:a libmp3lame -q:a 0 )
 else
-  FFMPEG_ARGS=( -codec:a libmp3lame -b:a "$MP3_BITRATE" )
+  FFMPEG_ARGS=( -nostdin -codec:a libmp3lame -b:a "$MP3_BITRATE" )
 fi
 
 # Verify ffmpeg supports libmp3lame (otherwise building MP3 won't work)
@@ -134,10 +145,22 @@ while IFS= read -r -d $'\0' src; do
   out="$MP3_DIR/${base}.mp3"
 
   echo "Converting: $src -> $out"
+  # Skip if the target exists and is newer than the source (optionally)
+  if [ "$SKIP_UP_TO_DATE" = true ] && [ -f "$out" ] && [ "$out" -nt "$src" ]; then
+    echo "Skipping (output is newer than source): $out"
+    continue
+  fi
   # Try the command; if it fails with 'At least one output file must be specified', print the full command for debug
-  if ! ffmpeg -y -hide_banner -loglevel info -i "$src" "${FFMPEG_ARGS[@]}" "$out"; then
+  # Allow the caller to set --no-force to avoid overwriting
+  ffmpeg_args_to_invoke=( -hide_banner -loglevel info -i "$src" )
+  ffmpeg_args_to_invoke+=( "${FFMPEG_ARGS[@]}" )
+  if [ "$FORCE_OVERWRITE" = true ]; then
+    ffmpeg_args_to_invoke+=( -y )
+  fi
+
+  if ! ffmpeg "${ffmpeg_args_to_invoke[@]}" "$out"; then
     echo "\n--- ERROR: ffmpeg failed while converting $src" >&2
-    echo "Command: ffmpeg -y -i '$src' ${FFMPEG_ARGS[*]} '$out'" >&2
+    echo "Command: ffmpeg ${ffmpeg_args_to_invoke[*]} '$out'" >&2
     echo "Check the ffmpeg output above for clues (missing encoder, invalid flags)." >&2
     continue
   fi

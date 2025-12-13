@@ -15,6 +15,8 @@ Options:
 - `-b` / `--bitrate <rate>`: set mp3 bitrate (e.g. `192k`, `320k`) — only used when VBR is disabled
 - `--vbr`: use libmp3lame VBR highest quality instead (default when `USE_VBR=true` in script)
 - `--no-vbr`: use CBR mode with a fixed bitrate
+- `--skip-up-to-date`: skip conversion when the target mp3 file exists and is newer than the source wav
+- `--no-force`: prevent ffmpeg from overwriting target files (by default script uses -y to overwrite)
 
 Config (top of `convert_wav_to_mp3.sh`):
 - `USE_VBR=true` (or false) — If true, uses `-q:a 0` (VBR highest quality); otherwise uses `-b:a MP3_BITRATE`
