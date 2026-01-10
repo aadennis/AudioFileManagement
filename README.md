@@ -7,7 +7,8 @@ Convert all .wav files in a named folder to .mp3 and store them in a sub-directo
 Usage:
 ```
 chmod +x convert_wav_to_mp3.sh
-./convert_wav_to_mp3.sh /path/to/folder
+dir=/path/to/folder
+./convert_wav_to_mp3.sh $dir$
 ```
 
 Options:
@@ -41,5 +42,63 @@ Options:
 
 Output:
 Files will be created as `x-1.mp3`, `x-2.mp3`, ... in the output folder.
+
+---
+
+## AudioFileManagement — Quick Reference ✅
+
+A small collection of shell scripts for common audio tasks using `ffmpeg`.
+
+### Included scripts
+- **change_track_speed.sh** — change playback speed of an audio track (supports chaining `atempo` filters when needed).
+- **convert_mp4_to_mp3.sh** — convert a single `.mp4` to `.mp3`.
+- **convert_wav_to_mp3.sh** — convert all `.wav` files in a folder to `.mp3` (supports VBR/CBR, recursion).
+- **split_audio_file.sh** — split any audio file into N equal parts.
+- **split_mp3_file.sh** — split a single `.mp3` into N parts (outputs into `split/` folder).
+
+### Requirements
+- `ffmpeg` (with `libmp3lame` for MP3 encoding)
+- A POSIX-compatible shell (Bash recommended)
+- On Windows: run from WSL or place files under `/mnt/*` for easiest use
+
+> ⚠️ Note: `convert_wav_to_mp3.sh` checks for `libmp3lame` and will fail if your `ffmpeg` build lacks the MP3 encoder.
+
+### Quick usage examples
+
+- change_track_speed.sh
+```
+./change_track_speed.sh input.mp3 [speed] [output.mp3]
+# Examples:
+./change_track_speed.sh track.mp3 0.7 slowed.mp3
+./change_track_speed.sh track.mp3 1.25      # auto-generates track_1.25x.mp3
+```
+
+- convert_mp4_to_mp3.sh
+```
+./convert_mp4_to_mp3.sh video.mp4
+# -> output: video.mp3
+```
+
+- convert_wav_to_mp3.sh
+```
+./convert_wav_to_mp3.sh /path/to/folder --recursive -b 192k --no-vbr
+# -> output in /path/to/folder/mp3/
+```
+
+- split_audio_file.sh
+```
+./split_audio_file.sh lesson.mp3 4
+# -> lesson_01.mp3, lesson_02.mp3, ...
+```
+
+### Tips & Troubleshooting
+- If you see errors about missing encoders, install a full `ffmpeg` build (e.g., `apt install ffmpeg` on Debian/Ubuntu or download a static build).
+- For Windows users, WSL is the simplest way to use these Bash scripts against local files.
+- Scripts typically overwrite outputs unless explicitly disabled with options like `--no-force`.
+
+### Contributing / License
+- Contributions welcome — PRs and issues are appreciated.
+- Add a `LICENSE` file if you want to attach a license (MIT is common for utility scripts).
+
 
 
