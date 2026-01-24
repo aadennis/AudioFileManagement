@@ -12,6 +12,9 @@ if [[ -z "$input" ]]; then
     exit 1
 fi
 
+# Resolve absolute path
+abs_input="$(realpath "$input")"
+
 # Strip extension and build output filename
 base="${input%.*}"
 ext="${input##*.}"
@@ -21,7 +24,7 @@ output="${base}_${multiplier}.${ext}"
 listfile=$(mktemp)
 
 for ((i=1; i<=multiplier; i++)); do
-    echo "file '$input'" >> "$listfile"
+    printf "file '%s'\n" "$abs_input" >> "$listfile"
 done
 
 # Run ffmpeg concat
@@ -29,5 +32,4 @@ ffmpeg -hide_banner -loglevel error -f concat -safe 0 -i "$listfile" -c copy "$o
 
 echo "Created: $output"
 
-# Clean up
 rm "$listfile"
