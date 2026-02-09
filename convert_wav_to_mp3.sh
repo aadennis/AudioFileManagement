@@ -165,6 +165,22 @@ while IFS= read -r -d $'\0' src; do
     continue
   fi
   count=$((count + 1))
+  # Copy the timestamp (modification time) from the source .wav to the output .mp3
+  # Copy mtime: prefer touch, fallback to python (python3 then python)
+  PYTHON_BIN=$(command -v python3 || command -v python || true)
+  if command -v touch >/dev/null 2>&1; then
+    touch -r "$src" "$out" || true
+  elif [ -n "$PYTHON_BIN" ]; then
+    "$PYTHON_BIN" - "$src" "$out" <<'PY' || true
+import os,sys
+src=sys.argv[1]; out=sys.argv[2]
+try:
+    t = os.path.getmtime(src)
+    os.utime(out, (t, t))
+except Exception:
+    pass
+PY
+  fi
 
 done < <("${SEARCH_CMD[@]}" -print0)
 

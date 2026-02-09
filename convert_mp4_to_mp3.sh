@@ -24,3 +24,14 @@ basename=$(basename "$1" .mp4)
 output="$basename.mp3"
 
 ffmpeg -i "$1" -vn -ar 44100 -ac 2 -b:a 192k "$output"
+
+# Copy timestamp from source to output (prefer touch -r, fallback to Python)
+if command -v touch >/dev/null 2>&1; then
+    touch -r "$1" "$output" || true
+else
+    if command -v python3 >/dev/null 2>&1; then
+        python3 -c 'import os,sys; t=int(os.path.getmtime(sys.argv[1])); os.utime(sys.argv[2], (t,t))' "$1" "$output" || true
+    elif command -v python >/dev/null 2>&1; then
+        python -c 'import os,sys; t=int(os.path.getmtime(sys.argv[1])); os.utime(sys.argv[2], (t,t))' "$1" "$output" || true
+    fi
+fi
