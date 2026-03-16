@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Convert all .wav files in the named folder to .mp3 files in a sub-folder named 'mp3'
-# Uses ffmpeg
+# Uses ffmpeg with volume increased by 30% by default (configurable)
 # Configurable quality via constants below.
 # Usage:
 #   chmod +x convert_wav_to_mp3.sh
@@ -9,6 +9,7 @@
 #   -b|--bitrate <bitrate>    — set bitrate (e.g. 320k). Only used when USE_VBR=false
 #   --vbr                     — use libmp3lame VBR best-quality mode (-q:a 0)
 #   -r|--recursive            — search subdirectories for .wav files
+#   -v|--volume <multiplier>  — set volume multiplier (e.g. 1.3 for +30%, 0.7 for -30%)
 #   -h|--help                 — show this message
 
 # -------------------------------
@@ -19,6 +20,8 @@
 USE_VBR=true
 # When not using VBR, change this to the desired bitrate e.g. "320k" or "192k"
 MP3_BITRATE="320k"
+# Volume multiplier (1.0 = no change, 1.3 = +30% volume, 0.7 = -30% volume)
+VOLUME_MULTIPLIER=1.3
 # -------------------------------
 
 set -euo pipefail
@@ -31,6 +34,7 @@ show_help() {
 # parse CLI
 RECURSIVE=false
 BITRATE='' 
+VOLUME=''
 SKIP_UP_TO_DATE=false
 FORCE_OVERWRITE=true
 
@@ -44,6 +48,11 @@ while [[ $# -gt 0 ]]; do
       ;;
     -b|--bitrate)
       BITRATE="$2"
+      shift
+      shift
+      ;;
+    -v|--volume)
+      VOLUME="$2"
       shift
       shift
       ;;
@@ -86,7 +95,7 @@ done
 set -- "${POSITIONAL[@]}"
 
 if [ $# -lt 1 ]; then
-  echo "Usage: $0 <directory> [--recursive] [--vbr] [--no-vbr] [-b|--bitrate BITRATE]"
+  echo "Usage: $0 <directory> [--recursive] [--vbr] [--no-vbr] [-b|--bitrate BITRATE] [-v|--volume MULTIPLIER]"
   exit 1
 fi
 
@@ -100,6 +109,11 @@ fi
 # Apply CLI bitrate override if passed
 if [ -n "$BITRATE" ]; then
   MP3_BITRATE="$BITRATE"
+fi
+
+# Apply CLI volume override if passed
+if [ -n "$VOLUME" ]; then
+  VOLUME_MULTIPLIER="$VOLUME"
 fi
 
 MP3_DIR="$TARGET_DIR/mp3"
@@ -154,6 +168,7 @@ while IFS= read -r -d $'\0' src; do
   # Allow the caller to set --no-force to avoid overwriting
   ffmpeg_args_to_invoke=( -hide_banner -loglevel info -i "$src" )
   ffmpeg_args_to_invoke+=( "${FFMPEG_ARGS[@]}" )
+  ffmpeg_args_to_invoke+=( -filter:a "volume=$VOLUME_MULTIPLIER" )
   if [ "$FORCE_OVERWRITE" = true ]; then
     ffmpeg_args_to_invoke+=( -y )
   fi
