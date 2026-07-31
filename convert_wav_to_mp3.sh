@@ -137,13 +137,6 @@ else
   FFMPEG_ARGS=( -nostdin -codec:a libmp3lame -b:a "$MP3_BITRATE" )
 fi
 
-# Verify ffmpeg supports libmp3lame (otherwise building MP3 won't work)
-if ! ffmpeg -hide_banner -encoders 2>/dev/null | grep -qE "libmp3lame|mp3\_?lame"; then
-  echo "Error: the ffmpeg build doesn't support libmp3lame / LAME mp3 encoder."
-  echo "Install ffmpeg with mp3 encoder support or use a build that includes libmp3lame (e.g., apt install ffmpeg on Debian/Ubuntu or use a static build)."
-  exit 3
-fi
-
 # Convert
 count=0
 # Use process substitution to handle files safely
