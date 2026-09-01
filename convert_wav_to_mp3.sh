@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Convert all .wav files in the named folder to .mp3 files in a sub-folder named 'mp3'
+# Convert all .wav files in the named folder to _orig.mp3 and _edit.mp3 files
+# in a sub-folder named 'mp3'
 # Uses ffmpeg with volume increased by 30% by default (configurable)
 # Configurable quality via constants below.
 # Usage:
@@ -122,7 +123,7 @@ mkdir -p -- "$MP3_DIR"
 echo "Searching for .wav files in: $TARGET_DIR"
 if [ "$RECURSIVE" = true ]; then
   echo "Recursive search: enabled"
-  SEARCH_CMD=(find "$TARGET_DIR" -type f -iname '*.wav')
+  SEARCH_CMD=(find "$TARGET_DIR" -type f -iname '*.WAV')
 else
   SEARCH_CMD=(find "$TARGET_DIR" -maxdepth 1 -type f -iname '*.wav')
 fi
@@ -149,12 +150,13 @@ while IFS= read -r -d $'\0' src; do
 
   filename="$(basename "$src")"
   base="${filename%.*}"
-  out="$MP3_DIR/${base}.mp3"
+  orig_out="$MP3_DIR/${base}_orig.mp3"
+  edit_out="$MP3_DIR/${base}_edit.mp3"
 
-  echo "Converting: $src -> $out"
+  echo "Converting: $src -> $orig_out and $edit_out"
   # Skip if the target exists and is newer than the source (optionally)
-  if [ "$SKIP_UP_TO_DATE" = true ] && [ -f "$out" ] && [ "$out" -nt "$src" ]; then
-    echo "Skipping (output is newer than source): $out"
+  if [ "$SKIP_UP_TO_DATE" = true ] && [ -f "$orig_out" ] && [ -f "$edit_out" ] && [ "$orig_out" -nt "$src" ] && [ "$edit_out" -nt "$src" ]; then
+    echo "Skipping (outputs are newer than source): $orig_out and $edit_out"
     continue
   fi
   # Try the command; if it fails with 'At least one output file must be specified', print the full command for debug
@@ -166,25 +168,27 @@ while IFS= read -r -d $'\0' src; do
     ffmpeg_args_to_invoke+=( -y )
   fi
 
-  if ! ffmpeg "${ffmpeg_args_to_invoke[@]}" "$out"; then
+  if ! ffmpeg "${ffmpeg_args_to_invoke[@]}" "$orig_out"; then
     echo "\n--- ERROR: ffmpeg failed while converting $src" >&2
-    echo "Command: ffmpeg ${ffmpeg_args_to_invoke[*]} '$out'" >&2
+    echo "Command: ffmpeg ${ffmpeg_args_to_invoke[*]} '$orig_out'" >&2
     echo "Check the ffmpeg output above for clues (missing encoder, invalid flags)." >&2
     continue
   fi
+  cp -- "$orig_out" "$edit_out"
   count=$((count + 1))
-  # Copy the timestamp (modification time) from the source .wav to the output .mp3
+  # Copy the timestamp (modification time) from the source .wav to both outputs
   # Copy mtime: prefer touch, fallback to python (python3 then python)
   PYTHON_BIN=$(command -v python3 || command -v python || true)
   if command -v touch >/dev/null 2>&1; then
-    touch -r "$src" "$out" || true
+    touch -r "$src" "$orig_out" "$edit_out" || true
   elif [ -n "$PYTHON_BIN" ]; then
-    "$PYTHON_BIN" - "$src" "$out" <<'PY' || true
+    "$PYTHON_BIN" - "$src" "$orig_out" "$edit_out" <<'PY' || true
 import os,sys
-src=sys.argv[1]; out=sys.argv[2]
+  src=sys.argv[1]; outputs=sys.argv[2:]
 try:
     t = os.path.getmtime(src)
-    os.utime(out, (t, t))
+    for out in outputs:
+      os.utime(out, (t, t))
 except Exception:
     pass
 PY
