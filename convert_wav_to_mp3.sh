@@ -123,7 +123,7 @@ mkdir -p -- "$MP3_DIR"
 echo "Searching for .wav files in: $TARGET_DIR"
 if [ "$RECURSIVE" = true ]; then
   echo "Recursive search: enabled"
-  SEARCH_CMD=(find "$TARGET_DIR" -type f -iname '*.WAV')
+  SEARCH_CMD=(find "$TARGET_DIR" -type f -iname '*.wav')
 else
   SEARCH_CMD=(find "$TARGET_DIR" -maxdepth 1 -type f -iname '*.wav')
 fi
