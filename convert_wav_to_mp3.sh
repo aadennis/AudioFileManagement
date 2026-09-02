@@ -140,6 +140,28 @@ else
   FFMPEG_ARGS=( -nostdin -codec:a libmp3lame -b:a "$MP3_BITRATE" )
 fi
 
+preserve_timestamps() {
+  local src="$1"
+  local orig_out="$2"
+  local edit_out="$3"
+  local python_bin
+
+  python_bin=$(command -v python3 || command -v python || true)
+  if [ -n "$python_bin" ]; then
+    "$python_bin" - "$src" "$orig_out" "$edit_out" <<'PY' || true
+import os
+import sys
+
+source = os.stat(sys.argv[1])
+outputs = sys.argv[2:]
+for output in outputs:
+    os.utime(output, (source.st_mtime, source.st_mtime))
+PY
+  else
+    touch -r "$src" "$orig_out" "$edit_out" || true
+  fi
+}
+
 # Convert
 count=0
 # Use process substitution to handle files safely
@@ -178,23 +200,7 @@ while IFS= read -r -d $'\0' src; do
   fi
   cp -- "$orig_out" "$edit_out"
   count=$((count + 1))
-  # Copy the timestamp (modification time) from the source .wav to both outputs
-  # Copy mtime: prefer touch, fallback to python (python3 then python)
-  PYTHON_BIN=$(command -v python3 || command -v python || true)
-  if command -v touch >/dev/null 2>&1; then
-    touch -r "$src" "$orig_out" "$edit_out" || true
-  elif [ -n "$PYTHON_BIN" ]; then
-    "$PYTHON_BIN" - "$src" "$orig_out" "$edit_out" <<'PY' || true
-import os,sys
-  src=sys.argv[1]; outputs=sys.argv[2:]
-try:
-    t = os.path.getmtime(src)
-    for out in outputs:
-      os.utime(out, (t, t))
-except Exception:
-    pass
-PY
-  fi
+  preserve_timestamps "$src" "$orig_out" "$edit_out"
 
 done < <("${SEARCH_CMD[@]}" -print0)
 

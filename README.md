@@ -24,7 +24,9 @@ Config (top of `convert_wav_to_mp3.sh`):
 - `MP3_BITRATE="320k"` — default bitrate when using CBR mode
 
 Output:
-Converted files will be placed under `<target>/mp3` with the same basename and `.mp3` extension.
+Converted files will be placed under `<target>/mp3/originals` and `<target>/mp3/edited` with the same basename and `.mp3` extension.
+
+The script preserves the source file's Date modified on both macOS and WSL/Ubuntu. Date created is not changed, because Date modified is the reliable cross-platform timestamp.
 ## split_mp3_file.sh
 Split a single mp3 into N equal parts (approx.). Defaults to 4 parts and writes files to a `split` folder next to the input file.
 
@@ -82,7 +84,7 @@ A small collection of shell scripts for common audio tasks using `ffmpeg`.
 - convert_wav_to_mp3.sh
 ```
 ./convert_wav_to_mp3.sh /path/to/folder --recursive -b 192k --no-vbr
-# -> output in /path/to/folder/mp3/
+# -> output in /path/to/folder/mp3/originals/ and /path/to/folder/mp3/edited/
 ```
 
 - split_audio_file.sh
