@@ -118,7 +118,9 @@ if [ -n "$VOLUME" ]; then
 fi
 
 MP3_DIR="$TARGET_DIR/mp3"
-mkdir -p -- "$MP3_DIR"
+ORIGINALS_DIR="$MP3_DIR/originals"
+EDITED_DIR="$MP3_DIR/edited"
+mkdir -p -- "$ORIGINALS_DIR" "$EDITED_DIR"
 
 echo "Searching for .wav files in: $TARGET_DIR"
 if [ "$RECURSIVE" = true ]; then
@@ -150,8 +152,8 @@ while IFS= read -r -d $'\0' src; do
 
   filename="$(basename "$src")"
   base="${filename%.*}"
-  orig_out="$MP3_DIR/${base}_orig.mp3"
-  edit_out="$MP3_DIR/${base}_edit.mp3"
+  orig_out="$ORIGINALS_DIR/${base}_orig.mp3"
+  edit_out="$EDITED_DIR/${base}_edit.mp3"
 
   echo "Converting: $src -> $orig_out and $edit_out"
   # Skip if the target exists and is newer than the source (optionally)
