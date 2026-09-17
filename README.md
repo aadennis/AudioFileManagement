@@ -35,12 +35,16 @@ Usage:
 chmod +x split_mp3_file.sh
 ./split_mp3_file.sh x.mp3
 ./split_mp3_file.sh x.mp3 -n 6 --outdir parts
+./split_mp3_file.sh x.mp3 --duration 10m --outdir ten-minute-parts
 ```
 
 Options:
 - `-n` / `--parts` — number of parts to split into (default 4)
+- `--duration` — target duration per part, such as `600`, `10m`, or `00:10:00`; any remainder is written to a final shorter file
 - `--outdir` — output folder name (default: `split`)
 - `--no-force` — do not overwrite existing files; script will skip those
+
+Use either `--parts` or `--duration`, not both. For example, a 55-minute file with `--duration 10m` produces five 10-minute files and one 5-minute file.
 
 Output:
 Files will be created as `x-1.mp3`, `x-2.mp3`, ... in the output folder.
