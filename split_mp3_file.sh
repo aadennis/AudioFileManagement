@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Split a single .mp3 file into n equal-sized parts (approx.) using ffmpeg.
+# Split a single .mp3 file into equal-sized parts or fixed-duration chunks using ffmpeg.
 # - Default parts: 4
 # - Default output folder: 'split' (created next to the input file)
 # - Outputs named: <basename>-1.mp3, <basename>-2.mp3, etc.
@@ -8,6 +8,7 @@
 #   chmod +x split_mp3_file.sh
 #   ./split_mp3_file.sh x.mp3
 #   ./split_mp3_file.sh x.mp3 -n 6
+#   ./split_mp3_file.sh x.mp3 --duration 10m
 #   ./split_mp3_file.sh x.mp3 --parts 6 --outdir splits
 
 set -euo pipefail
@@ -17,10 +18,11 @@ show_help() {
   cat <<'EOF'
 Usage: split_mp3_file.sh <input.mp3> [options]
 
-Splits input.mp3 into N parts (default 4) and writes them to a folder named 'split' in the same directory.
+Splits input.mp3 into N parts (default 4), or into fixed-duration chunks, and writes them to a folder named 'split' in the same directory.
 
 Options:
   -n | --parts N       : number of parts (default 4)
+  --duration TIME      : target duration per part (e.g. 600, 10m, 00:10:00); final part may be shorter
   --outdir <name>     : output folder name (default 'split') !!! this is just the leaf name, not a path.  
   --no-force           : do not overwrite existing files
   -h | --help          : show help
@@ -29,6 +31,8 @@ EOF
 
 # defaults
 PARTS=4
+PARTS_SET=false
+CHUNK_DURATION=""
 OUT_DIR_NAME="split"
 FORCE_OVERWRITE=true
 
@@ -38,6 +42,12 @@ while [[ $# -gt 0 ]]; do
   case $1 in
     -n|--parts)
       PARTS="$2"
+      PARTS_SET=true
+      shift
+      shift
+      ;;
+    --duration)
+      CHUNK_DURATION="$2"
       shift
       shift
       ;;
@@ -71,7 +81,7 @@ done
 set -- "${POSITIONAL[@]}"
 
 if [ $# -lt 1 ]; then
-  echo "Usage: $0 <input.mp3> [-n | --parts N] [--outdir name] [--no-force]"
+  echo "Usage: $0 <input.mp3> [-n | --parts N | --duration TIME] [--outdir name] [--no-force]"
   exit 1
 fi
 
@@ -88,8 +98,12 @@ if [[ "${ext,,}" != "mp3" ]]; then
   echo "Warning: input extension is not .mp3. Proceeding anyway but the script expects mp3."
 fi
 
-# Validate PARTS is a positive integer
-if ! [[ "$PARTS" =~ ^[0-9]+$ ]] || [ "$PARTS" -le 0 ]; then
+# Validate the selected split mode.
+if [ -n "$CHUNK_DURATION" ] && [ "$PARTS_SET" = true ]; then
+  echo "Error: use either --parts or --duration, not both"
+  exit 3
+fi
+if [ -z "$CHUNK_DURATION" ] && { ! [[ "$PARTS" =~ ^[0-9]+$ ]] || [ "$PARTS" -le 0 ]; }; then
   echo "Error: parts must be a positive integer (>0). Provided: $PARTS"
   exit 3
 fi
@@ -115,7 +129,47 @@ if [ -z "$duration" ]; then
 fi
 
 # Calculate part duration with 3 decimal places
-part_duration=$(echo "scale=3; $duration / $PARTS" | bc)
+if [ -n "$CHUNK_DURATION" ]; then
+  case "$CHUNK_DURATION" in
+    *:*)
+      if ! [[ "$CHUNK_DURATION" =~ ^([0-9]+):([0-9]{2})(:([0-9]{2})(\.[0-9]+)?)?$ ]]; then
+        echo "Error: duration must be seconds, Nm, Nh, or HH:MM:SS. Provided: $CHUNK_DURATION"
+        exit 6
+      fi
+      if [[ "$CHUNK_DURATION" == *:*:* ]]; then
+        chunk_seconds=$(awk -F: '{ print ($1 * 3600) + ($2 * 60) + $3 }' <<< "$CHUNK_DURATION")
+      else
+        chunk_seconds=$(awk -F: '{ print ($1 * 60) + $2 }' <<< "$CHUNK_DURATION")
+      fi
+      ;;
+    *m)
+      chunk_seconds=$(awk '{ sub(/m$/, ""); print $1 * 60 }' <<< "$CHUNK_DURATION")
+      ;;
+    *h)
+      chunk_seconds=$(awk '{ sub(/h$/, ""); print $1 * 3600 }' <<< "$CHUNK_DURATION")
+      ;;
+    *s|*[!0-9.]*|"")
+      echo "Error: duration must be seconds, Nm, Nh, or HH:MM:SS. Provided: $CHUNK_DURATION"
+      exit 6
+      ;;
+    *)
+      chunk_seconds="$CHUNK_DURATION"
+      ;;
+  esac
+
+  if ! awk -v value="$chunk_seconds" 'BEGIN { exit !(value > 0) }'; then
+    echo "Error: duration must be greater than zero. Provided: $CHUNK_DURATION"
+    exit 6
+  fi
+  PARTS=$(awk -v total="$duration" -v chunk="$chunk_seconds" 'BEGIN {
+    whole = int(total / chunk)
+    if (total - (whole * chunk) > 0.000001) whole++
+    print whole
+  }')
+  part_duration="$chunk_seconds"
+else
+  part_duration=$(echo "scale=3; $duration / $PARTS" | bc)
+fi
 
 # Loop and create parts
 i=0
