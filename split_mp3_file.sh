@@ -21,7 +21,7 @@ Splits input.mp3 into N parts (default 4) and writes them to a folder named 'spl
 
 Options:
   -n | --parts N       : number of parts (default 4)
-  --outdir <name>     : output folder name (default 'split')
+  --outdir <name>     : output folder name (default 'split') !!! this is just the leaf name, not a path.  
   --no-force           : do not overwrite existing files
   -h | --help          : show help
 EOF
