@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
-# Convert all .wav files in the named folder to _orig.mp3 and _edit.mp3 files
-# in a sub-folder named 'mp3'
+# Convert all .wav files in the named folder to _orig.mp3 files in a sub-folder
+# named 'mp3'. Pass -e to also produce _edit.mp3 files.
 # Uses ffmpeg with volume increased by 30% by default (configurable)
 # Configurable quality via constants below.
 # Usage:
 #   chmod +x convert_wav_to_mp3.sh
-#   ./convert_wav_to_mp3.sh /path/to/folder
-# Optional env/CLI overrides:
+#   ./convert_wav_to_mp3.sh /path/to/input_dir /path/to/output_dir
+# Optional env/CLI overrides:./
 #   -b|--bitrate <bitrate>    — set bitrate (e.g. 320k). Only used when USE_VBR=false
 #   --vbr                     — use libmp3lame VBR best-quality mode (-q:a 0)
 #   -r|--recursive            — search subdirectories for .wav files
+#   -e|--edited               — also produce files in the edited folder
 #   -v|--volume <multiplier>  — set volume multiplier (e.g. 1.3 for +30%, 0.7 for -30%)
 #   -h|--help                 — show this message
 
@@ -38,6 +39,7 @@ BITRATE=''
 VOLUME=''
 SKIP_UP_TO_DATE=false
 FORCE_OVERWRITE=true
+BOTH_OUTPUTS=false
 
 # accept flags
 POSITIONAL=()
@@ -55,6 +57,10 @@ while [[ $# -gt 0 ]]; do
     -v|--volume)
       VOLUME="$2"
       shift
+      shift
+      ;;
+    -e|--edited)
+      BOTH_OUTPUTS=true
       shift
       ;;
     --vbr)
@@ -95,17 +101,30 @@ done
 # restore positional
 set -- "${POSITIONAL[@]}"
 
-if [ $# -lt 1 ]; then
-  echo "Usage: $0 <directory> [--recursive] [--vbr] [--no-vbr] [-b|--bitrate BITRATE] [-v|--volume MULTIPLIER]"
+if [ $# -lt 2 ]; then
+  echo "Usage: $0 <input_dir> <output_dir> [-e|--edited] [--recursive] [--vbr] [--no-vbr] [-b|--bitrate BITRATE] [-v|--volume MULTIPLIER]"
   exit 1
 fi
 
-TARGET_DIR="$1"
+INPUT_DIR="$1"
+OUTPUT_DIR="$2"
 
-if [ ! -d "$TARGET_DIR" ]; then
-  echo "Error: directory '$TARGET_DIR' not found."
+if [ ! -d "$INPUT_DIR" ]; then
+  echo "Error: input directory '$INPUT_DIR' not found."
   exit 2
 fi
+
+if [ ! -d "$OUTPUT_DIR" ]; then
+  mkdir -p -- "$OUTPUT_DIR"
+fi
+
+# Copy removable media to local temporary storage before processing.
+TEMP_INPUT_DIR=$(mktemp -d "${TMPDIR:-/tmp}/convert_wav_to_mp3.XXXXXX")
+cleanup() {
+  rm -rf -- "$TEMP_INPUT_DIR"
+}
+trap cleanup EXIT
+cp -a -- "$INPUT_DIR"/. "$TEMP_INPUT_DIR"/
 
 # Apply CLI bitrate override if passed
 if [ -n "$BITRATE" ]; then
@@ -117,17 +136,21 @@ if [ -n "$VOLUME" ]; then
   VOLUME_MULTIPLIER="$VOLUME"
 fi
 
-MP3_DIR="$TARGET_DIR/mp3"
+MP3_DIR="$OUTPUT_DIR/mp3"
 ORIGINALS_DIR="$MP3_DIR/originals"
 EDITED_DIR="$MP3_DIR/edited"
-mkdir -p -- "$ORIGINALS_DIR" "$EDITED_DIR"
+mkdir -p -- "$ORIGINALS_DIR"
+if [ "$BOTH_OUTPUTS" = true ]; then
+  mkdir -p -- "$EDITED_DIR"
+fi
 
-echo "Searching for .wav files in: $TARGET_DIR"
+echo "Copied input directory to local temporary storage: $TEMP_INPUT_DIR"
+echo "Searching for .wav files in: $TEMP_INPUT_DIR"
 if [ "$RECURSIVE" = true ]; then
   echo "Recursive search: enabled"
-  SEARCH_CMD=(find "$TARGET_DIR" -type f -iname '*.wav')
+  SEARCH_CMD=(find "$TEMP_INPUT_DIR" -type f -iname '*.wav')
 else
-  SEARCH_CMD=(find "$TARGET_DIR" -maxdepth 1 -type f -iname '*.wav')
+  SEARCH_CMD=(find "$TEMP_INPUT_DIR" -maxdepth 1 -type f -iname '*.wav')
 fi
 
 # Build ffmpeg args for MP3 conversion
@@ -142,13 +165,13 @@ fi
 
 preserve_timestamps() {
   local src="$1"
-  local orig_out="$2"
-  local edit_out="$3"
+  shift
+  local output
   local python_bin
 
   python_bin=$(command -v python3 || command -v python || true)
   if [ -n "$python_bin" ]; then
-    "$python_bin" - "$src" "$orig_out" "$edit_out" <<'PY' || true
+    "$python_bin" - "$src" "$@" <<'PY' || true
 import os
 import sys
 
@@ -158,7 +181,9 @@ for output in outputs:
     os.utime(output, (source.st_mtime, source.st_mtime))
 PY
   else
-    touch -r "$src" "$orig_out" "$edit_out" || true
+    for output in "$@"; do
+      touch -r "$src" "$output" || true
+    done
   fi
 }
 
@@ -177,11 +202,17 @@ while IFS= read -r -d $'\0' src; do
   orig_out="$ORIGINALS_DIR/${base}_orig.mp3"
   edit_out="$EDITED_DIR/${base}_edit.mp3"
 
-  echo "Converting: $src -> $orig_out and $edit_out"
+  if [ "$BOTH_OUTPUTS" = true ]; then
+    echo "Converting: $src -> $orig_out and $edit_out"
+  else
+    echo "Converting: $src -> $orig_out"
+  fi
   # Skip if the target exists and is newer than the source (optionally)
-  if [ "$SKIP_UP_TO_DATE" = true ] && [ -f "$orig_out" ] && [ -f "$edit_out" ] && [ "$orig_out" -nt "$src" ] && [ "$edit_out" -nt "$src" ]; then
-    echo "Skipping (outputs are newer than source): $orig_out and $edit_out"
-    continue
+  if [ "$SKIP_UP_TO_DATE" = true ] && [ -f "$orig_out" ] && [ "$orig_out" -nt "$src" ]; then
+    if [ "$BOTH_OUTPUTS" = false ] || { [ -f "$edit_out" ] && [ "$edit_out" -nt "$src" ]; }; then
+      echo "Skipping (outputs are newer than source): $orig_out"
+      continue
+    fi
   fi
   # Try the command; if it fails with 'At least one output file must be specified', print the full command for debug
   # Allow the caller to set --no-force to avoid overwriting
@@ -198,14 +229,23 @@ while IFS= read -r -d $'\0' src; do
     echo "Check the ffmpeg output above for clues (missing encoder, invalid flags)." >&2
     continue
   fi
-  cp -- "$orig_out" "$edit_out"
+  if [ "$BOTH_OUTPUTS" = true ]; then
+    cp -- "$orig_out" "$edit_out"
+    preserve_timestamps "$src" "$orig_out" "$edit_out"
+  else
+    preserve_timestamps "$src" "$orig_out"
+  fi
   count=$((count + 1))
-  preserve_timestamps "$src" "$orig_out" "$edit_out"
 
 done < <("${SEARCH_CMD[@]}" -print0)
 
 if [ "$count" -eq 0 ]; then
-  echo "No .wav files found in $TARGET_DIR"
+  echo "No .wav files found in $INPUT_DIR"
+  read -r -p "Have you mounted the input drive? (y/N) " mounted || true
+  if [[ ! "$mounted" =~ ^[Yy]$ ]]; then
+    echo "If not, mount it and retry. For example:"
+    echo "  sudo mkdir -p /mnt/h && sudo mount -t drvfs H: /mnt/h"
+  fi
 else
   echo "✅ Converted $count file(s). Output in $MP3_DIR"
 fi

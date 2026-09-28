@@ -7,12 +7,14 @@ Convert all .wav files in a named folder to .mp3 and store them in a sub-directo
 Usage:
 ```
 chmod +x convert_wav_to_mp3.sh
-dir=/path/to/folder
-./convert_wav_to_mp3.sh $dir$
+input_dir=/path/to/input_dir
+output_dir=/path/to/output_dir
+./convert_wav_to_mp3.sh "$input_dir" "$output_dir"
 ```
 
 Options:
 - `-r` / `--recursive`: search subfolders for `.wav` files
+- `-e` / `--edited`: also produce files in `<output_dir>/mp3/edited`; by default, only `<output_dir>/mp3/originals` is produced
 - `-b` / `--bitrate <rate>`: set mp3 bitrate (e.g. `192k`, `320k`) — only used when VBR is disabled
 - `--vbr`: use libmp3lame VBR highest quality instead (default when `USE_VBR=true` in script)
 - `--no-vbr`: use CBR mode with a fixed bitrate
@@ -24,7 +26,7 @@ Config (top of `convert_wav_to_mp3.sh`):
 - `MP3_BITRATE="320k"` — default bitrate when using CBR mode
 
 Output:
-Converted files will be placed under `<target>/mp3/originals` and `<target>/mp3/edited` with the same basename and `.mp3` extension.
+The input directory is copied to local temporary storage before processing. By default, converted files are placed under `<output_dir>/mp3/originals`. Pass `-e` (or `--edited`) to also create `<output_dir>/mp3/edited` with the same basename and `.mp3` extension.
 
 The script preserves the source file's Date modified on both macOS and WSL/Ubuntu. Date created is not changed, because Date modified is the reliable cross-platform timestamp.
 ## split_mp3_file.sh
@@ -87,8 +89,8 @@ A small collection of shell scripts for common audio tasks using `ffmpeg`.
 
 - convert_wav_to_mp3.sh
 ```
-./convert_wav_to_mp3.sh /path/to/folder --recursive -b 192k --no-vbr
-# -> output in /path/to/folder/mp3/originals/ and /path/to/folder/mp3/edited/
+./convert_wav_to_mp3.sh /path/to/input_dir /path/to/output_dir --recursive -b 192k --no-vbr
+# -> output in /path/to/output_dir/mp3/originals/ and /path/to/output_dir/mp3/edited/
 ```
 
 - split_audio_file.sh
