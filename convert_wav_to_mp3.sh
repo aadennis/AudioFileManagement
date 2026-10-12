@@ -136,7 +136,8 @@ if [ -n "$VOLUME" ]; then
   VOLUME_MULTIPLIER="$VOLUME"
 fi
 
-MP3_DIR="$OUTPUT_DIR/mp3"
+today=$(date +%F)
+MP3_DIR="$OUTPUT_DIR/mp3-$today"
 ORIGINALS_DIR="$MP3_DIR/originals"
 EDITED_DIR="$MP3_DIR/edited"
 mkdir -p -- "$ORIGINALS_DIR"
