@@ -3,12 +3,21 @@
 set -euo pipefail
 
 get_input_folder() {
+
+    # Native Unix / macOS
     if [[ -n "${SOUND_RECORDER_DEFAULT:-}" ]]; then
         printf '%s\n' "$SOUND_RECORDER_DEFAULT"
         return
     fi
 
-    echo "ERROR: SOUND_RECORDER_DEFAULT is not set." >&2
+    # WSL fallback
+    if [[ -n "${WSL_DISTRO_NAME:-}" ]]; then
+        cmd.exe /c echo %SOUND_RECORDER_DEFAULT% |
+            tr -d '\r'
+        return
+    fi
+
+    echo "ERROR: SOUND_RECORDER_DEFAULT not defined" >&2
     exit 1
 }
 
@@ -60,6 +69,7 @@ EOF
     input_dir=$(get_input_folder)
 
     local output_dir="${input_dir}/updated_volume"
+    echo "output_dir: $output_dir"
 
     mkdir -p "$output_dir"
 
