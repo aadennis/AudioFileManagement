@@ -41,7 +41,10 @@ process_file() {
 
     echo "Processing: $filename"
 
+    printf 'Input file: <%s>\n' "$input_file"
+
     ffmpeg \
+        -nostdin \
         -hide_banner \
         -loglevel warning \
         -i "$input_file" \
