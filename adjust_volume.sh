@@ -1,4 +1,20 @@
 #!/usr/bin/env bash
+#
+# Adjust the volume of MP3 files found under SOUND_RECORDER_DEFAULT.
+# The script recursively processes files and writes the results to an
+# updated_volume subdirectory, preserving each input's base filename and
+# adding the gain and current date to the output name.
+#
+# Usage:
+#   ./adjust_volume.sh [<gain in dB>]
+#
+# With no argument, the gain defaults to +6 dB. A single signed or unsigned
+# numeric dB value may be supplied, for example: ./adjust_volume.sh -3.
+# ffmpeg must be installed. Processed audio is limited to 0.95 to reduce
+# clipping. Existing output files are overwritten.
+#
+# SOUND_RECORDER_DEFAULT must identify the input folder. In WSL, the value may
+# be supplied through the Windows environment and is converted to a WSL path.
 
 set -euo pipefail
 
