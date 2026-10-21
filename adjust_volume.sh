@@ -53,21 +53,43 @@ process_file() {
         "$output_file"
 }
 
-main() {
-    if [[ $# -ne 1 ]]; then
-        cat <<EOF
-Usage:
-    $0 <dB adjustment>
+usage() {
+    cat <<EOF
+    Usage:
+        $0 <dB adjustment>
+        $0
 
-Examples:
-    $0 3
-    $0 6
-    $0 -3
+    Examples:
+        $0 
+        $0 3
+        $0 6
+        $0 -3
 EOF
-        exit 1
-    fi
 
-    local gain_db="$1"
+}
+
+main() {
+    local gain_db="6" # default gain adjustment in dB
+
+    case $# in
+        0)
+            echo "No gain adjustment specified, using default: $gain_db dB"
+            ;;
+        1)
+            gain_db="$1"
+
+            [[ $gain_db =~ ^[-+]?[0-9]+([.][0-9]+)?$ ]] || {
+                echo "Invalid dB value: $gain_db"
+                exit 1
+            }
+
+            echo "Using gain adjustment: $gain_db dB"
+            ;;
+        *)
+            usage
+            exit 1
+            ;;
+    esac
 
     local input_dir
     input_dir=$(get_input_folder)
