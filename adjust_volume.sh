@@ -4,21 +4,22 @@ set -euo pipefail
 
 get_input_folder() {
 
-    # Native Unix / macOS
+    local folder
+
     if [[ -n "${SOUND_RECORDER_DEFAULT:-}" ]]; then
-        printf '%s\n' "$SOUND_RECORDER_DEFAULT"
-        return
+        folder="$SOUND_RECORDER_DEFAULT"
+    elif [[ -n "${WSL_DISTRO_NAME:-}" ]]; then
+        folder=$(cmd.exe /c echo %SOUND_RECORDER_DEFAULT% | tr -d '\r')
+    else
+        echo "ERROR: SOUND_RECORDER_DEFAULT not defined" >&2
+        exit 1
     fi
 
-    # WSL fallback
     if [[ -n "${WSL_DISTRO_NAME:-}" ]]; then
-        cmd.exe /c echo %SOUND_RECORDER_DEFAULT% |
-            tr -d '\r'
-        return
+        folder=$(wslpath "$folder")
     fi
 
-    echo "ERROR: SOUND_RECORDER_DEFAULT not defined" >&2
-    exit 1
+    printf '%s\n' "$folder"
 }
 
 process_file() {
