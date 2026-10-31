@@ -32,6 +32,21 @@ The script preserves the source file's Date modified on both macOS and WSL/Ubunt
 ## split_mp3_file.sh
 Split a single mp3 into N equal parts (approx.). Defaults to 4 parts and writes files to a `split` folder next to the input file.
 
+### Typical use-case
+The normal flow is:
+- record onto a dedicated SD card on the Roland R05
+- plug the SD card into the reader on the PC
+- open an Ubuntu/WSL session
+- allow WSL to mount the H drive - right now, 'H' is what the PC sees:
+  - `sudo mkdir -p /mnt/h && sudo mount -t drvfs H: /mnt/h`
+- declare paths in WSL:
+  - `in_dir='/mnt/h'`
+  - `outdir='/mnt/c/temp/'`
+- run the command to pick up those folders:
+  - `./convert_wav_to_mp3.sh $in_dir $outdir -e`
+- when you have confirmed the copy worked, delete the files from the SD card
+- put the SD card back in the Roland
+
 Usage:
 ```
 chmod +x split_mp3_file.sh
