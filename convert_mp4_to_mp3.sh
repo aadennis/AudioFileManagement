@@ -16,7 +16,7 @@
 
 
 if [ -z "$1" ]; then
-    echo "Usage: $0 <input-file>"
+    echo "Usage: $0 <input-file>" 
     exit 1
 fi
 

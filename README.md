@@ -28,10 +28,6 @@ Config (top of `convert_wav_to_mp3.sh`):
 Output:
 The input directory is copied to local temporary storage before processing. By default, converted files are placed under `<output_dir>/mp3/originals`. Pass `-e` (or `--edited`) to also create `<output_dir>/mp3/edited` with the same basename and `.mp3` extension.
 
-The script preserves the source file's Date modified on both macOS and WSL/Ubuntu. Date created is not changed, because Date modified is the reliable cross-platform timestamp.
-## split_mp3_file.sh
-Split a single mp3 into N equal parts (approx.). Defaults to 4 parts and writes files to a `split` folder next to the input file.
-
 ### Typical use-case
 The normal flow is:
 - record onto a dedicated SD card on the Roland R05
@@ -46,6 +42,12 @@ The normal flow is:
   - `./convert_wav_to_mp3.sh $in_dir $outdir -e`
 - when you have confirmed the copy worked, delete the files from the SD card
 - put the SD card back in the Roland
+
+
+The script preserves the source file's Date modified on both macOS and WSL/Ubuntu. Date created is not changed, because Date modified is the reliable cross-platform timestamp.
+## split_mp3_file.sh
+Split a single mp3 into N equal parts (approx.). Defaults to 4 parts and writes files to a `split` folder next to the input file.
+
 
 Usage:
 ```
